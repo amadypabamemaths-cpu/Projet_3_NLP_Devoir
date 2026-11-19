@@ -21,7 +21,7 @@ DATA = ROOT / "data"
 
 # --- Constantes à ajuster par l'équipe après le 1er run ---------------------
 # Recopier ici le hash affiché à la fin de la cellule 6 du notebook.
-EXPECTED_TEST_HASH: Optional[str] = None
+EXPECTED_TEST_HASH: Optional[str] = "cb97cbd5dc5ea50cda5cd7f477eb71d3358bb2337447e57c7361c8f366aef77f"
 
 
 # ---------------------------------------------------------------------------
