@@ -1,9 +1,8 @@
-numpy>=1.26,<3
+numpy<2
 pandas>=2.2,<3
 scikit-learn>=1.4,<2
 jupytext>=1.16
 pytest>=8.0
-# Phase 2 :
-sentence-transformers>=2.7
-# Phase 3 :
+transformers==4.57.6
+sentence-transformers>=3.0,<6.0
 gradio>=4.36
