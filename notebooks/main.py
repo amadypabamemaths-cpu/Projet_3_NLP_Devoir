@@ -168,6 +168,22 @@ traps_mal_classees = ((m1_test_pred == 1) & trap_mask).sum()
 print(f"\nPièges (lien+montant, légitimes) : {traps_mal_classees} / {trap_mask.sum()} classés fraude par erreur.")
 
 # %% [markdown]
+# ## Graphique 1 — Matrice de confusion (Modèle M1)
+
+# %%
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize=(6, 4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+            xticklabels=['Légitime (0)', 'Fraude (1)'], 
+            yticklabels=['Légitime (0)', 'Fraude (1)'])
+plt.title('Matrice de confusion (M1, seuil 0.26)')
+plt.ylabel('Vérité terrain')
+plt.xlabel('Prédiction')
+plt.show()
+
+# %% [markdown]
 # ## Cellule 9 — Évasion, erreurs, démo, LLM (Phase 3)
 # Test d'évasion, analyse d'erreurs, app Gradio, alerte LLM.
 # En attendant, stub.
@@ -202,6 +218,22 @@ for name, scores in [("B2", b2_ev_scores), ("B3", b3_ev_scores), ("M1", m1_ev_sc
     print(f"Rappel {name} sur messages obfusqués : {r_evasion:.3f}")
 
 # %% [markdown]
+# ## Graphique 2 — Test d'évasion
+
+# %%
+plt.figure(figsize=(6, 4))
+modeles = ['B2 (mots)', 'B3 (caractères)', 'M1 (embeddings)']
+scores = [100, 100, 93.3]
+bars = plt.bar(modeles, scores, color=['#ff9999', '#66b3ff', '#99ff99'])
+plt.ylim(0, 110)
+plt.title("Rappel sur 15 messages frauduleux obfusqués")
+plt.ylabel("Rappel (%)")
+for bar in bars:
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 2, f'{yval}%', ha='center', va='bottom', fontweight='bold')
+plt.show()
+
+# %% [markdown]
 # ## Cellule 10 — Analyse d'erreurs (Top 10)
 # Le sujet exige au moins 10 erreurs examinées et classées.
 
@@ -232,6 +264,24 @@ sample = errors.head(10)
 for idx, row in sample.iterrows():
     print(f"[{row['cause']}] Vrai: {row['label']} | Prédit: {row['pred']} (score {row['score']:.2f})")
     print(f"  Texte: {row['text'][:100]}...\n")
+
+# %% [markdown]
+# ## Graphique 3 — Courbe Précision-Rappel
+
+# %%
+from sklearn.metrics import precision_recall_curve
+
+precision, recall, _ = precision_recall_curve(y_test, m1_test_scores)
+
+plt.figure(figsize=(6, 4))
+plt.plot(recall, precision, color='#2c3e50', linewidth=2)
+plt.scatter([0.96], [0.75], color='red', s=150, zorder=5, label='Seuil choisi (0.26)')
+plt.title('Courbe Précision-Rappel (Modèle M1)')
+plt.xlabel('Rappel (Sensibilité)')
+plt.ylabel('Précision')
+plt.grid(True, linestyle='--', alpha=0.7)
+plt.legend()
+plt.show()
 
 # %% [markdown]
 # ## Cellule 11 — (Phase 4, rapport)
