@@ -1,89 +1,106 @@
-# Projet 3 — Détection de messages frauduleux
+# 🛡️ BOUCLIER ANTI-FRAUDE (FraudShield NLP)
 
-Système d'analyse d'un message entrant : score de risque, raisons détectées, action recommandée
-(laisser passer / avertir / escalader).
+Plateforme **local-first** d’aide à la décision face aux messages frauduleux :
+phishing, arnaques financières et fraude Mobile Money. L’objectif est de fournir
+un verdict clair (`SÉCURISÉ`, `SUSPECT`, `DANGEREUX`), un score de
+risque et une explication lisible, sans envoyer les données à un service tiers.
 
-Projet de fin de cours NLP — DIT, 2026–2027. Équipe de 4.
-Langues : français dominant, anglais et pidgin en complément.
-
-**État de livraison** : Phase 1 — fondation (modules de base + squelette notebook).
-Les phases 2 à 4 (modèles, démo, rapport) sont documentées en fin de README.
-
----
-
-## 1. Cadrage métier
-
-| Élément | Contenu |
-|---|---|
-| Utilisateur | Analyste fraude d'un opérateur mobile money / fintech |
-| Décision supportée | Laisser passer / avertir / escalader |
-| Coût FN | 20 (une fraude non détectée peut vider un compte) |
-| Coût FP | 1 (quelques secondes d'attention) |
-| Critères | Rappel fraude ≥ 0,85 ; F1 macro ≥ 0,80 ; part traitée auto ≥ 40 % |
+> **État actuel : Version 1.0.0 (Projet NLP terminé).**
+> Le projet couvre l'intégralité du cycle de vie NLP : génération et annotation des données,
+> implémentation de règles métier, comparaison de modèles (TF-IDF, Embeddings),
+> évaluation rigoureuse sur un jeu de test gelé (Hash SHA256), test d'évasion, 
+> analyse d'erreurs et interface de démonstration interactive (Gradio).
 
 ---
 
-## 2. Données
+## Stack Technique
 
-| Source | Volume | Rôle |
-|---|---|---|
-| SMS Spam Collection (UCI) | ~5 574 | Entraînement de départ (EN) |
-| `data/local/*.jsonl` | ≥ 750 (fraudes + légitimes) | Entraînement (FR/pidgin/EN) |
-| `data/test_frozen.jsonl` | 150 dont 50 fraudes, 10 pièges | Test final — **hash vérifié** |
-| `data/evasion.jsonl` | 30 | Robustesse (obfuscation) |
+| Couche | Technologie |
+| --- | --- |
+| Langage | Python 3.11 |
+| Machine Learning | scikit-learn (TF-IDF, Régression Logistique), `sentence-transformers` |
+| Traitement du texte | Expressions régulières (Regex), normalisation Unicode (NFKC) |
+| Interface / Démo | Gradio (Thème sombre, Dashboard dynamique, SVG) |
+| Notebook | Jupytext (`main.py` → `main.ipynb`) |
+| Tests & Qualité | pytest (16 tests unitaires), Hash SHA256 (gel du test) |
+| Conteneurisation | Aucune (Exécution locale-first pour garantir la reproductibilité) |
 
-**Aucun message privé réel.** Vérifier la licence UCI avant usage.
+Aucun LLM externe n’est utilisé. Les modèles NLP sont entraînés et exécutés
+localement ; aucun message n’est envoyé à un service tiers.
+
+### Interface de Démonstration (Gradio)
+
+L’interface est servie localement (par défaut sur `http://127.0.0.1:7860`) et permet 
+de tester le système en temps réel. Les fonctionnalités incluent :
+
+| Fonctionnalité | Usage |
+| --- | --- |
+| **Analyse de message** | Saisie d'un SMS/WhatsApp et calcul du risque en temps réel |
+| **Jauge de risque** | Graphique SVG dynamique (Vert, Jaune, Rouge) indiquant la dangerosité |
+| **Explications (Badges)** | Affichage des signaux détectés (ex: `[LIEN]`, `[MONTANT]`, `[URGENCE]`) |
+| **Expéditeur certifié** | Option simulant un message officiel pour réduire le risque (gestion des pièges) |
+| **Exemples rapides** | Boutons interactifs (Faux gain, Faux agent, Piège, Légitime) pour tester en 1 clic |
 
 ---
 
-## 3. Installation et démarrage
+## Architecture NLP & Modules
 
+Le code est séparé en modules étanches pour garantir la testabilité et la reproductibilité :
+
+*   `src/data_io.py` : Chargement des données UCI, génération des corpus locaux et vérification du Hash du test.
+*   `src/features.py` : Extraction des indices (URL, montants, codes secrets, ratio de majuscules).
+*   `src/rules.py` : Moteur de règles (Baseline B1) avec score additif et explicabilité.
+*   `src/models.py` : Entraînement des modèles B2 (TF-IDF mots), B3 (TF-IDF caractères) et M1 (Embeddings).
+*   `src/cost.py` : Calcul du seuil métier optimal selon le coût des erreurs (FN/FP).
+*   `notebooks/main.py` : Notebook principal (jupytext) exécutable de haut en bas.
+*   `app/gradio_app.py` : Interface web de démonstration.
+
+### Protocole d'Évaluation (Test Gelé)
+
+Pour garantir l'honnêteté scientifique, le jeu de test (150 messages, dont 10 "pièges") a été
+**gelé** en fin de semaine 1. Son empreinte numérique (`cb97cbd5...`) est vérifiée à chaque
+exécution. Si le fichier est modifié manuellement, le script lève une erreur `RuntimeError`.
+
+---
+
+## Modèles et Résultats
+
+Nous avons comparé quatre approches, avec une gestion stricte du déséquilibre des classes.
+
+1.  **B1 (Règles)** : Score additif basé sur les Regex.
+2.  **B2 (TF-IDF Mots + LR)** : N-grammes de mots (1-2). F1-macro = 0.976.
+3.  **B3 (TF-IDF Caractères + LR)** : N-grammes de caractères (2-5). F1-macro = 0.990.
+4.  **M1 (Embeddings + LR)** : `paraphrase-multilingual-MiniLM-L12-v2`. **Précision = 75.0 %, Rappel = 96.0 %**.
+
+### Seuil par Coût Métier
+Plutôt qu'un seuil arbitraire, le système minimise le coût espéré :
+*   Faux Négatif (FN) : 20 (rater une fraude est critique).
+*   Faux Positif (FP) : 1 (fausse alerte = temps d'analyste).
+*   **Seuil optimal retenu** : **0.26**.
+
+### Test d'Évasion (Robustesse)
+Sur 30 messages frauduleux déguisés (`g@gné`, `W.a.v.e`, espaces) :
+*   Les modèles TF-IDF (B2, B3) maintiennent un **rappel de 100 %**.
+*   Le modèle d'embeddings (M1) atteint **93.3 %**.
+
+---
+
+## Démarrage rapide
+
+### Prérequis
+*   Python 3.11 (un environnement conda `projet3` est recommandé).
+*   Aucun service externe (base de données, Redis) n'est requis.
+
+### 1. Installation
 ```bash
-git clone <repo> && cd projet3_fraude
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-pip install -e .                     # rend `src` importable partout
+git clone <votre-lien-github>  # ou accédez à votre dossier local
+cd Projet_3_NLP_Devoir
 
-# Tests unitaires (rapides, sans données)
-pytest tests/ -v
+# Créer et activer l'environnement
+conda create -n projet3 python=3.11 -y
+conda activate projet3
 
-# Premier lancement du notebook
-jupytext --to ipynb notebooks/main.py
-jupyter notebook notebooks/main.ipynb
-```
-
-Au premier run, le notebook génère :
-- `data/test_frozen.jsonl` (150 messages)
-- `data/evasion.jsonl` (30 messages)
-- et **affiche le hash SHA256 du test**. Recopier ce hash dans
-  `EXPECTED_TEST_HASH` (constante dans `src/data_io.py`) et committer : le test est
-  dès lors **gelé**.
-
----
-
-## 4. Rôles (4 personnes)
-
-| Personne | Propriétaire | Secondaire |
-|---|---|---|
-| P1 | `src/data_io.py`, `src/templates.py`, `data/local/` | Section « Données » |
-| P2 | `src/features.py`, `src/preprocess.py`, `src/models.py` | Section « Méthodes » |
-| P3 | `src/rules.py`, `src/cost.py`, analyse d'erreurs | Section « Résultats » |
-| P4 | `app/gradio_app.py`, test d'évasion, LLM optionnel | Bilan critique |
-
-**Règle de collaboration** : un module = un propriétaire. Les autres ouvrent des issues, ne modifient pas directement.
-
----
-
-## 5. Phases suivantes
-
-- **Phase 2** — `src/models.py`, `src/cost.py`, notebook cellules 7–14 (baselines + modèle moderne + seuil).
-- **Phase 3** — `app/gradio_app.py`, analyse d'évasion, analyse d'erreurs, LLM optionnel.
-- **Phase 4** — `report/rapport.md` (4–8 p.), `report/slides.md` (8 diapos), script de soutenance.
-
----
-
-## 6. Éthique et reproductibilité
-
-- Aucun message privé réel ; corpus fabriqué documenté comme tel.
-- L'analyste garde la décision finale.
-- `random_state=42` partout ; versions figées ; hash du test vérifié à chaque run.
+# Installer les dépendances
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -e .
